@@ -1,6 +1,11 @@
+using System.Text;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using NAU.Api.Middleware;
 using NAU.Application;
 using NAU.Infrastructure;
+using NAU.Infrastructure.Persistence;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -23,6 +28,43 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    // AuthN: JWT bearer (options from Jwt section; secret from env in production).
+    var jwtSecret = builder.Configuration["Jwt:Secret"]
+        ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(o =>
+        {
+            o.MapInboundClaims = false; // keep 'sub', 'name' etc. as-is
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "nau-api",
+                ValidateAudience = true,
+                ValidAudience = builder.Configuration["Jwt:Audience"] ?? "nau-clients",
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30),
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+                NameClaimType = "name",
+            };
+        });
+    builder.Services.AddAuthorization();
+
+    // Rate limiting (Phase 2 §7): tight window on auth endpoints, general per-IP ceiling.
+    builder.Services.AddRateLimiter(o =>
+    {
+        o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+        o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 200, Window = TimeSpan.FromMinutes(1) }));
+    });
+
     // API surface
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
@@ -44,6 +86,9 @@ try
 
     var app = builder.Build();
 
+    // Migrations + roles/school/superadmin seed (idempotent; gated by config).
+    await DbSeeder.SeedAsync(app.Services);
+
     app.UseSerilogRequestLogging();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -54,6 +99,8 @@ try
     }
 
     app.UseCors("Default");
+    app.UseRateLimiter();
+    app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapControllers();
@@ -62,7 +109,7 @@ try
 
     app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException) // EF design-time aborts the host by design
 {
     Log.Fatal(ex, "NAU API terminated unexpectedly");
 }
