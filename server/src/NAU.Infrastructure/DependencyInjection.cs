@@ -6,6 +6,7 @@ using NAU.Application.Common.Interfaces;
 using NAU.Infrastructure.Auth;
 using NAU.Infrastructure.Email;
 using NAU.Infrastructure.Identity;
+using NAU.Infrastructure.Payments;
 using NAU.Infrastructure.Persistence;
 using NAU.Infrastructure.Storage;
 
@@ -45,6 +46,14 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailSender, ConsoleEmailSender>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        // Payment gateway: live Razorpay when configured, deterministic test gateway otherwise.
+        services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));
+        var provider = configuration[$"{PaymentOptions.SectionName}:Provider"] ?? "test";
+        if (string.Equals(provider, "razorpay", StringComparison.OrdinalIgnoreCase))
+            services.AddHttpClient<IPaymentGateway, RazorpayGateway>();
+        else
+            services.AddScoped<IPaymentGateway, TestPaymentGateway>();
 
         return services;
     }
