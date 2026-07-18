@@ -14,6 +14,10 @@ public interface IAppDbContext
     DbSet<Skill> Skills { get; }
     DbSet<School> Schools { get; }
     DbSet<VerificationRequest> VerificationRequests { get; }
+    DbSet<Campaign> Campaigns { get; }
+    DbSet<CampaignUpdate> CampaignUpdates { get; }
+    DbSet<Donation> Donations { get; }
+    DbSet<PaymentEvent> PaymentEvents { get; }
 
     /// <summary>Read-only, SQL-translatable view of authenticated users (for joins/listings).</summary>
     IQueryable<AppUserRef> Users { get; }

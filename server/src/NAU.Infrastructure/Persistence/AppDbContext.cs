@@ -20,6 +20,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<AlumniProfile> AlumniProfiles => Set<AlumniProfile>();
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<CampaignUpdate> CampaignUpdates => Set<CampaignUpdate>();
+    public DbSet<Donation> Donations => Set<Donation>();
+    public DbSet<PaymentEvent> PaymentEvents => Set<PaymentEvent>();
 
     /// <summary>
     /// Read-only view of Identity users for the Application layer. Mapped to the same
@@ -118,6 +122,61 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             r.HasIndex(x => new { x.UserId, x.Status });
             r.HasIndex(x => x.Status);
             r.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Campaign>(c =>
+        {
+            c.ToTable("campaigns");
+            c.Property(x => x.Title).HasMaxLength(200);
+            c.Property(x => x.Slug).HasMaxLength(220);
+            c.Property(x => x.Description).HasMaxLength(8000);
+            c.Property(x => x.CoverImageKey).HasMaxLength(300);
+            c.Property(x => x.OrganizerName).HasMaxLength(150);
+            c.Property(x => x.Currency).HasMaxLength(3);
+            c.Property(x => x.GoalAmount).HasColumnType("numeric(12,2)");
+            c.HasIndex(x => x.Slug).IsUnique();
+            c.HasIndex(x => x.Status);
+            c.HasQueryFilter(x => x.DeletedAt == null); // soft delete (Decision D9)
+            c.HasMany(x => x.Updates).WithOne().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Cascade);
+            c.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<CampaignUpdate>(u =>
+        {
+            u.ToTable("campaign_updates");
+            u.Property(x => x.Title).HasMaxLength(200);
+            u.Property(x => x.Body).HasMaxLength(4000);
+            u.HasIndex(x => x.CampaignId);
+        });
+
+        builder.Entity<Donation>(d =>
+        {
+            d.ToTable("donations");
+            d.Property(x => x.DonorName).HasMaxLength(120);
+            d.Property(x => x.DonorEmail).HasMaxLength(256);
+            d.Property(x => x.Amount).HasColumnType("numeric(12,2)");
+            d.Property(x => x.Currency).HasMaxLength(3);
+            d.Property(x => x.RazorpayOrderId).HasMaxLength(64);
+            d.Property(x => x.RazorpayPaymentId).HasMaxLength(64);
+            d.Property(x => x.RazorpaySignature).HasMaxLength(256);
+            d.Property(x => x.ReceiptNumber).HasMaxLength(40);
+            d.Property(x => x.FailureReason).HasMaxLength(500);
+            d.HasIndex(x => x.RazorpayOrderId).IsUnique();
+            d.HasIndex(x => new { x.CampaignId, x.Status });
+            d.HasIndex(x => x.UserId);
+            d.HasIndex(x => x.ReceiptNumber).IsUnique().HasFilter("receipt_number IS NOT NULL");
+            d.HasOne<Campaign>().WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PaymentEvent>(e =>
+        {
+            e.ToTable("payment_events");
+            e.Property(x => x.Provider).HasMaxLength(30);
+            e.Property(x => x.EventType).HasMaxLength(60);
+            e.Property(x => x.ProviderEventId).HasMaxLength(80);
+            e.Property(x => x.Payload).HasColumnType("jsonb");
+            e.Property(x => x.Error).HasMaxLength(1000);
+            e.HasIndex(x => x.ProviderEventId).IsUnique();
         });
 
         builder.Entity<Skill>(s =>
