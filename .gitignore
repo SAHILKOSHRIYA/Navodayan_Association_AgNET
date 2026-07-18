@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+
+# Environment & secrets — never commit real values
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+
+# Logs
+logs/
+*.log

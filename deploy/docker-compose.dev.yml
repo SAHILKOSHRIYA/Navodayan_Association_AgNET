@@ -1,0 +1,22 @@
+# Local development infrastructure only (API + Angular run on the host).
+# Usage: docker compose -f deploy/docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nau-postgres-dev
+    environment:
+      POSTGRES_DB: nau_dev
+      POSTGRES_USER: nau
+      POSTGRES_PASSWORD: nau_dev_password   # dev-only credentials, never used beyond localhost
+    ports:
+      - "5432:5432"
+    volumes:
+      - nau_pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nau -d nau_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  nau_pgdata_dev:
