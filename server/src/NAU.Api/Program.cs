@@ -50,7 +50,10 @@ try
                 NameClaimType = "name",
             };
         });
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(o =>
+        o.AddPolicy("Admin", p => p.RequireRole(
+            NAU.Domain.Constants.Roles.SuperAdmin,
+            NAU.Domain.Constants.Roles.AssociationAdmin)));
 
     // Rate limiting (Phase 2 §7): tight window on auth endpoints, general per-IP ceiling.
     builder.Services.AddRateLimiter(o =>

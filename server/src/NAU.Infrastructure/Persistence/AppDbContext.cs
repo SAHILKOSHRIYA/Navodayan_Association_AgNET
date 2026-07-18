@@ -19,16 +19,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AlumniProfile> AlumniProfiles => Set<AlumniProfile>();
     public DbSet<Skill> Skills => Set<Skill>();
+    public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
 
-    /// <summary>Read-only projection of Identity users for the Application layer.</summary>
-    public IQueryable<AppUserRef> Users =>
-        Set<AppUser>().Select(u => new AppUserRef(u.Id, u.FullName, u.Email!, u.Status, u.EmailConfirmed));
+    /// <summary>
+    /// Read-only view of Identity users for the Application layer. Mapped to the same
+    /// "users" relation (read-only, excluded from migrations) so joins and filters translate
+    /// to SQL — while keeping the concrete AppUser type inside Infrastructure.
+    /// </summary>
+    public IQueryable<AppUserRef> Users => Set<AppUserRef>();
 
     public Task<AppUserRef?> FindUserAsync(Guid id, CancellationToken ct = default) =>
-        Set<AppUser>()
-            .Where(u => u.Id == id)
-            .Select(u => new AppUserRef(u.Id, u.FullName, u.Email!, u.Status, u.EmailConfirmed))
-            .FirstOrDefaultAsync(ct);
+        Set<AppUserRef>().FirstOrDefaultAsync(u => u.Id == id, ct);
 
     Task<int> IAppDbContext.SaveChangesAsync(CancellationToken cancellationToken) =>
         base.SaveChangesAsync(cancellationToken);
@@ -52,6 +53,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             u.Property(x => x.FullName).HasMaxLength(120);
             u.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
             u.HasIndex(x => x.SchoolId);
+        });
+
+        // Read-only projection over the users table (Application layer sees this, not AppUser).
+        builder.Entity<AppUserRef>(r =>
+        {
+            r.HasNoKey();
+            r.ToView("users");
         });
 
         builder.Entity<School>(s =>
@@ -100,6 +108,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
             p.HasOne<AppUser>().WithOne().HasForeignKey<AlumniProfile>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             p.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<VerificationRequest>(r =>
+        {
+            r.ToTable("verification_requests");
+            r.Property(x => x.RejectionReason).HasMaxLength(500);
+            r.Property(x => x.AdminNotes).HasMaxLength(500);
+            r.HasIndex(x => new { x.UserId, x.Status });
+            r.HasIndex(x => x.Status);
+            r.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Skill>(s =>

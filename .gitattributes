@@ -1,0 +1,17 @@
+# Normalize line endings; let Git handle CRLF/LF per platform.
+* text=auto
+
+*.cs   text diff=csharp
+*.json text
+*.md   text
+*.yml  text
+*.scss text
+*.ts   text
+*.html text
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

@@ -13,6 +13,7 @@ public interface IAppDbContext
     DbSet<AlumniProfile> AlumniProfiles { get; }
     DbSet<Skill> Skills { get; }
     DbSet<School> Schools { get; }
+    DbSet<VerificationRequest> VerificationRequests { get; }
 
     /// <summary>Read-only, SQL-translatable view of authenticated users (for joins/listings).</summary>
     IQueryable<AppUserRef> Users { get; }
