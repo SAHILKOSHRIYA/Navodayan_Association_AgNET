@@ -65,6 +65,10 @@ try
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 200, Window = TimeSpan.FromMinutes(1) }));
     });
 
+    // Current-user accessor (JWT → Application layer)
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<NAU.Application.Common.Interfaces.ICurrentUser, NAU.Api.Security.CurrentUser>();
+
     // API surface
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();

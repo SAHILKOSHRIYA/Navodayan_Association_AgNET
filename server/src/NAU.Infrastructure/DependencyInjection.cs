@@ -7,6 +7,7 @@ using NAU.Infrastructure.Auth;
 using NAU.Infrastructure.Email;
 using NAU.Infrastructure.Identity;
 using NAU.Infrastructure.Persistence;
+using NAU.Infrastructure.Storage;
 
 namespace NAU.Infrastructure;
 
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString)
                    .UseSnakeCaseNamingConvention());
+        services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
         // ASP.NET Identity (password policy per Phase 2 §7; lockout enabled).
         services.AddIdentityCore<AppUser>(o =>
@@ -42,6 +44,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailSender, ConsoleEmailSender>();
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
 
         return services;
     }
