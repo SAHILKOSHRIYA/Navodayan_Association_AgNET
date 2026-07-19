@@ -18,6 +18,11 @@ public interface IAppDbContext
     DbSet<CampaignUpdate> CampaignUpdates { get; }
     DbSet<Donation> Donations { get; }
     DbSet<PaymentEvent> PaymentEvents { get; }
+    DbSet<Event> Events { get; }
+    DbSet<EventRsvp> EventRsvps { get; }
+    DbSet<EventGalleryImage> EventGalleryImages { get; }
+    DbSet<Announcement> Announcements { get; }
+    DbSet<AuditLog> AuditLogs { get; }
 
     /// <summary>Read-only, SQL-translatable view of authenticated users (for joins/listings).</summary>
     IQueryable<AppUserRef> Users { get; }

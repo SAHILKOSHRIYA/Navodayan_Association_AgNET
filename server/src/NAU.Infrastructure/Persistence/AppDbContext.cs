@@ -24,6 +24,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<CampaignUpdate> CampaignUpdates => Set<CampaignUpdate>();
     public DbSet<Donation> Donations => Set<Donation>();
     public DbSet<PaymentEvent> PaymentEvents => Set<PaymentEvent>();
+    public DbSet<Event> Events => Set<Event>();
+    public DbSet<EventRsvp> EventRsvps => Set<EventRsvp>();
+    public DbSet<EventGalleryImage> EventGalleryImages => Set<EventGalleryImage>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     /// <summary>
     /// Read-only view of Identity users for the Application layer. Mapped to the same
@@ -177,6 +182,57 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(x => x.Payload).HasColumnType("jsonb");
             e.Property(x => x.Error).HasMaxLength(1000);
             e.HasIndex(x => x.ProviderEventId).IsUnique();
+        });
+
+        builder.Entity<Event>(e =>
+        {
+            e.ToTable("events");
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(4000);
+            e.Property(x => x.Location).HasMaxLength(300);
+            e.Property(x => x.CoverImageKey).HasMaxLength(300);
+            e.HasIndex(x => x.EventDate);
+            e.HasIndex(x => x.Status);
+            e.HasMany(x => x.Rsvps).WithOne().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Gallery).WithOne().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<EventRsvp>(r =>
+        {
+            r.ToTable("event_rsvps");
+            r.HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
+            r.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<EventGalleryImage>(g =>
+        {
+            g.ToTable("event_gallery_images");
+            g.Property(x => x.FileKey).HasMaxLength(300);
+            g.Property(x => x.Caption).HasMaxLength(300);
+            g.HasIndex(x => x.EventId);
+        });
+
+        builder.Entity<Announcement>(a =>
+        {
+            a.ToTable("announcements");
+            a.Property(x => x.Title).HasMaxLength(200);
+            a.Property(x => x.Body).HasMaxLength(8000);
+            a.HasIndex(x => new { x.Category, x.Audience });
+            a.HasIndex(x => x.PublishedAt);
+            a.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<AuditLog>(a =>
+        {
+            a.ToTable("audit_logs");
+            a.Property(x => x.Action).HasMaxLength(80);
+            a.Property(x => x.EntityType).HasMaxLength(60);
+            a.Property(x => x.EntityId).HasMaxLength(64);
+            a.Property(x => x.Details).HasMaxLength(2000);
+            a.Property(x => x.Ip).HasMaxLength(64);
+            a.HasIndex(x => x.CreatedAt);
+            a.HasIndex(x => x.ActorId);
         });
 
         builder.Entity<Skill>(s =>

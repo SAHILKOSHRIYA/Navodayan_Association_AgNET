@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NAU.Application.Common.Interfaces;
+using NAU.Application.Features.Admin;
+using NAU.Infrastructure.Admin;
 using NAU.Infrastructure.Auth;
 using NAU.Infrastructure.Email;
 using NAU.Infrastructure.Identity;
@@ -45,6 +47,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailSender, ConsoleEmailSender>();
+        services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
 
         // Payment gateway: live Razorpay when configured, deterministic test gateway otherwise.
