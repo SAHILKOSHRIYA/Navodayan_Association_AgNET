@@ -47,9 +47,16 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IEmailSender, ConsoleEmailSender>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        // Email: real SMTP delivery when configured, otherwise log to the console (dev).
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+        var emailProvider = configuration[$"{EmailOptions.SectionName}:Provider"] ?? "console";
+        if (string.Equals(emailProvider, "smtp", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailSender, ConsoleEmailSender>();
 
         // Payment gateway: live Razorpay when configured, deterministic test gateway otherwise.
         services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));

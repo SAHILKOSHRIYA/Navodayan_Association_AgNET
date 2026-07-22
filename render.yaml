@@ -46,3 +46,19 @@ services:
         sync: false
       - key: Payments__WebhookSecret
         sync: false
+      # Email — keep "console" for the pilot (links appear in logs); switch to "smtp" + fill
+      # the rest to send real verification/receipt emails (see docs/OWNER-ACTION-GUIDE.md §3).
+      - key: Email__Provider
+        value: console
+      - key: Email__Host
+        sync: false
+      - key: Email__Port
+        value: "587"
+      - key: Email__Username
+        sync: false
+      - key: Email__Password
+        sync: false
+      - key: Email__FromEmail
+        sync: false
+      - key: Email__FromName
+        value: Navodaya Alumni Association
