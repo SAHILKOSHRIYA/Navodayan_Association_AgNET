@@ -20,6 +20,7 @@ public sealed class FilesController(IFileStorage storage) : ControllerBase
         if (file is null) return NotFound();
 
         Response.Headers.CacheControl = "public, max-age=86400";
+        Response.Headers["X-Content-Type-Options"] = "nosniff"; // don't let browsers re-sniff the type
         return File(file.Content, file.ContentType);
     }
 }

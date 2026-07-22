@@ -99,6 +99,16 @@ try
     app.UseSerilogRequestLogging();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+    // Baseline security headers on every response (Phase 2 §7).
+    app.Use(async (context, nextMiddleware) =>
+    {
+        var headers = context.Response.Headers;
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["X-Frame-Options"] = "DENY";
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        await nextMiddleware();
+    });
+
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();

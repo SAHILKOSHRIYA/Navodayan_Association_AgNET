@@ -22,9 +22,10 @@ public sealed class LocalFileStorage : IFileStorage
 
     public async Task<string> SaveAsync(Stream content, string fileName, string contentType, string folder, CancellationToken ct = default)
     {
-        var ext = Path.GetExtension(fileName);
-        if (string.IsNullOrWhiteSpace(ext))
-            ext = ContentTypes.TryGetContentType(fileName, out _) ? ext : ".bin";
+        // Derive the extension from the (already-validated) content type, NOT the client-supplied
+        // filename. This prevents a caller from smuggling an executable/HTML extension past the
+        // content-type check and having it served back inline (stored XSS).
+        var ext = ExtensionFor(contentType) ?? SafeExtension(fileName);
 
         var key = $"{folder}/{Guid.NewGuid():N}{ext}".Replace("\\", "/");
         var fullPath = ResolvePath(key);
@@ -52,6 +53,23 @@ public sealed class LocalFileStorage : IFileStorage
         var fullPath = ResolvePath(key);
         if (File.Exists(fullPath)) File.Delete(fullPath);
         return Task.CompletedTask;
+    }
+
+    /// <summary>Safe extension for a known-allowed content type, or null if unrecognised.</summary>
+    private static string? ExtensionFor(string contentType) => contentType?.ToLowerInvariant() switch
+    {
+        "image/jpeg" => ".jpg",
+        "image/png" => ".png",
+        "image/webp" => ".webp",
+        "application/pdf" => ".pdf",
+        _ => null,
+    };
+
+    /// <summary>Fallback: keep only a short alphanumeric extension from the filename, else ".bin".</summary>
+    private static string SafeExtension(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return System.Text.RegularExpressions.Regex.IsMatch(ext, @"^\.[a-z0-9]{1,5}$") ? ext : ".bin";
     }
 
     /// <summary>Resolves a key to a path under the storage root, rejecting path traversal.</summary>
