@@ -1,0 +1,49 @@
+# Production-style stack for a single VPS (the paid option documented in Phase 2 D4).
+# The app image serves both the API and the Angular SPA on one origin.
+# For HTTPS, put Caddy or Nginx in front, or terminate TLS at your provider.
+#
+# Usage:
+#   cp .env.example .env   # then fill in real values
+#   docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nau
+      POSTGRES_USER: nau
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - nau_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nau -d nau"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      PORT: "8080"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=nau;Username=nau;Password=${POSTGRES_PASSWORD}"
+      Database__MigrateOnStartup: "true"
+      Jwt__Secret: ${JWT_SECRET:?set JWT_SECRET in .env}
+      Client__BaseUrl: ${CLIENT_BASE_URL:-http://localhost:8080}
+      Seed__SuperAdmin__Email: ${ADMIN_EMAIL:-admin@example.com}
+      Seed__SuperAdmin__Password: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      Payments__Provider: ${PAYMENTS_PROVIDER:-test}
+      Payments__KeyId: ${RAZORPAY_KEY_ID:-}
+      Payments__KeySecret: ${RAZORPAY_KEY_SECRET:-}
+      Payments__WebhookSecret: ${RAZORPAY_WEBHOOK_SECRET:-}
+    ports:
+      - "8080:8080"
+
+volumes:
+  nau_pgdata:

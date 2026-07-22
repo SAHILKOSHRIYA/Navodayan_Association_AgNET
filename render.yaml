@@ -1,0 +1,48 @@
+# Render Blueprint — one Docker web service (API + Angular) + a managed PostgreSQL.
+# Deploy: push to GitHub, then in Render → "New +" → "Blueprint" and pick this repo.
+# Secrets marked `sync: false` are entered once in the Render dashboard, never committed.
+
+databases:
+  - name: nau-postgres
+    plan: free              # free Postgres (note: free instances expire after ~90 days)
+    databaseName: nau
+    user: nau
+
+services:
+  - type: web
+    name: nau-app
+    runtime: docker
+    plan: free               # free web service (sleeps when idle — fine for a pilot)
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: nau-postgres
+          property: connectionString
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: Jwt__Secret
+        generateValue: true            # Render generates a strong secret
+      # Public URL used in verification/reset emails (set to your Render URL after first deploy).
+      - key: Client__BaseUrl
+        sync: false
+      # First super-admin (set these in the dashboard, then change the password after first login).
+      - key: Seed__SuperAdmin__Email
+        sync: false
+      - key: Seed__SuperAdmin__Password
+        sync: false
+      - key: Seed__SuperAdmin__FullName
+        value: NAU Administrator
+      # Payments — keep "test" until Razorpay KYC is done, then switch to "razorpay".
+      - key: Payments__Provider
+        value: test
+      - key: Payments__KeyId
+        sync: false
+      - key: Payments__KeySecret
+        sync: false
+      - key: Payments__WebhookSecret
+        sync: false

@@ -105,6 +105,10 @@ try
         app.UseSwaggerUI();
     }
 
+    // Serve the Angular build (single-origin deployment). Harmless in dev (no wwwroot).
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+
     app.UseCors("Default");
     app.UseRateLimiter();
     app.UseAuthentication();
@@ -113,6 +117,9 @@ try
     app.MapControllers();
     app.MapHealthChecks("/health", new() { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new() { Predicate = check => check.Tags.Contains("ready") });
+
+    // SPA fallback: any non-API, non-file route returns index.html so Angular routing works.
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }

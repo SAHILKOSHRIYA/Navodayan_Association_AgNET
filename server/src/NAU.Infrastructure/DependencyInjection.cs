@@ -18,8 +18,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
+        var connectionString = NormalizeConnectionString(
+            configuration.GetConnectionString("Default")
+            ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured."));
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString)
@@ -59,5 +60,31 @@ public static class DependencyInjection
             services.AddScoped<IPaymentGateway, TestPaymentGateway>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Accepts either a native Npgsql key=value string or a postgres:// URL (as provided by
+    /// Render/Heroku) and returns a valid Npgsql connection string. URLs get SSL enabled, which
+    /// managed Postgres hosts require.
+    /// </summary>
+    internal static string NormalizeConnectionString(string value)
+    {
+        if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
+            !value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+            return value;
+
+        var uri = new Uri(value);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Username = Uri.UnescapeDataString(userInfo[0]),
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            SslMode = Npgsql.SslMode.Require,
+            TrustServerCertificate = true,
+        };
+        return builder.ToString();
     }
 }
