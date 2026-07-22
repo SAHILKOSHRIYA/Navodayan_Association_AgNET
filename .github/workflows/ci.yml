@@ -24,6 +24,18 @@ jobs:
       - name: Unit tests
         run: dotnet test server/tests/NAU.UnitTests/NAU.UnitTests.csproj --configuration Release --no-build --verbosity normal
 
+  integration:
+    name: Integration tests (real PostgreSQL)
+    runs-on: ubuntu-latest       # GitHub Linux runners include Docker, which Testcontainers needs
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - name: Integration tests
+        run: dotnet test server/tests/NAU.IntegrationTests/NAU.IntegrationTests.csproj --configuration Release
+
   frontend:
     name: Frontend (Angular 20)
     runs-on: ubuntu-latest
