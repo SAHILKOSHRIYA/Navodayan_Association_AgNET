@@ -39,11 +39,19 @@ one-command Docker deploy.
 | `Dockerfile` | Single image: builds the SPA, builds the API, serves both on one origin |
 | `render.yaml` | One-click Render deployment blueprint |
 
+## Prerequisites
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| **.NET SDK** | 9.0 | [download](https://dotnet.microsoft.com/download/dotnet/9.0) · Windows: `winget install Microsoft.DotNet.SDK.9` |
+| **Node.js** + npm | 20+ | CI builds the client on Node 22 |
+| **Docker Desktop** | any recent | Runs PostgreSQL locally (and the one-container build). The daemon must be running. |
+
 ## Run it locally
 
 ```bash
-# 1. Start PostgreSQL
-docker compose -f deploy/docker-compose.dev.yml up -d
+# 1. Start PostgreSQL  (‑p gives this an isolated Compose project — see note below)
+docker compose -p nau-dev -f deploy/docker-compose.dev.yml up -d
 
 # 2. API  →  http://localhost:5080  (Swagger at /swagger)
 cd server && dotnet run --project src/NAU.Api
@@ -51,13 +59,28 @@ cd server && dotnet run --project src/NAU.Api
 # 3. Client  →  http://localhost:4200  (proxies /api to the API)
 cd client && npm install && npm start
 
-# Tests
+# Tests  (the integration tests spin up a throwaway Postgres via Testcontainers → Docker must be running)
 cd server && dotnet test
 ```
 
 Seeded super-admin (dev): `admin@nau.local` / `Admin@12345`.
 
+> **Compose project names.** Both compose files live in `deploy/`, so by default they share the same
+> Compose project (`deploy`) and their `postgres` services collide. Always pass an explicit `-p` so the
+> dev DB and the full stack stay isolated: `-p nau-dev` for `docker-compose.dev.yml`, `-p nau` for
+> `docker-compose.yml`.
+
 ## Run the whole thing in one container
+
+Full stack (API + SPA on one origin + managed Postgres) via Compose:
+
+```bash
+cp deploy/.env.example deploy/.env    # then fill in POSTGRES_PASSWORD, JWT_SECRET, ADMIN_PASSWORD, …
+docker compose -p nau -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+# → http://localhost:8080     (stop with:  docker compose -p nau -f deploy/docker-compose.yml down)
+```
+
+Or build just the image:
 
 ```bash
 docker build -t nau-app .

@@ -75,7 +75,11 @@ try
     // API surface
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(o =>
+        // Disambiguate nested request types that share a short name across controllers
+        // (e.g. Campaigns and Events both declare ChangeStatusRequest), while keeping
+        // readable generic names like "ApiResponseOfCampaignCardDto".
+        o.CustomSchemaIds(SchemaId));
 
     // CORS — origins come from configuration only (domain-agnostic, Phase 2 §1).
     var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -143,4 +147,20 @@ finally
 }
 
 // Exposed for WebApplicationFactory in integration tests.
-public partial class Program;
+public partial class Program
+{
+    // Unique OpenAPI schema id per type: prefixes nested types with their declaring type
+    // (so Campaigns/Events ChangeStatusRequest don't collide) and renders generics as
+    // "OuterOfInner" (e.g. ApiResponseOfCampaignCardDto).
+    private static string SchemaId(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var name = type.Name[..type.Name.IndexOf('`')];
+            var args = string.Concat(type.GetGenericArguments().Select(SchemaId));
+            return $"{name}Of{args}";
+        }
+
+        return type.DeclaringType is null ? type.Name : SchemaId(type.DeclaringType) + type.Name;
+    }
+}
